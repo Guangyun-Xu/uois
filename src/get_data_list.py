@@ -7,7 +7,7 @@ testPath = '../dataset/BOP/train_pbr'
 splitTrainList = True
 n_splitTrainList = 1000
 
-date = 1009
+date = 1010
 
 dataListPath = os.path.join(trainPath, 'dataList_{}.txt'.format(date))
 trainListPath = os.path.join(trainPath, 'trainList_{}.txt'.format(date))
@@ -28,7 +28,7 @@ for subFile in files:
                 sceneKey = str(i)
                 scene = data[sceneKey]
                 object_num = len(scene)
-                folderName = os.path.join(trainPath, subFile)
+                folderName = subFile
                 sceneId = "{:0>6d}".format(int(i))
                 scenePath = "{} {} {}".format(folderName, sceneId, object_num)
                 lineScene = scenePath + '\n'
