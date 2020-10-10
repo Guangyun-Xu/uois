@@ -18,6 +18,14 @@ TARGET_LABEL = 2  # objects of best suction and grasping
 
 
 ###### Some utilities #####
+def get_mask_idx(mask_name:str):
+    mask_id = mask_name[7:]
+    mask_id = mask_id.lstrip('0')
+    mask_id = mask_id.rsplit('.png')[0]
+    if mask_id == '':
+        mask_id = '0'
+    return int(mask_id)
+
 def worker_init_fn(worker_id):
     """ Use this to bypass issue with PyTorch dataloaders using deterministic RNG for Numpy
         https://github.com/pytorch/pytorch/issues/5059
@@ -68,7 +76,7 @@ class GraspDataloader(Dataset):
         self.config = config
         check_data_align(self.data_list, self.grasp_list)
 
-    def process_label_3D(self, foreground_labels, xyz_img, scene_description):
+    def process_label_3D(self, foreground_labels, xyz_img, scene_description, suction_name, grasp_name):
         """ Process foreground_labels
 
             @param foreground_labels: a [H x W] numpy array of labels
@@ -100,26 +108,49 @@ class GraspDataloader(Dataset):
                 offsets[mask, ...] = 0
                 continue
 
-            # Compute 3D object centers in camera frame
-            idx = k - TARGET_LABEL
-            object_pose = scene_description[idx]
-            center_in_camera = object_pose['cam_t_m2c']
-            for j in range(len(center_in_camera)):
-                center_in_camera[j] = center_in_camera[j] / 1000
+            if k == 2:
+                # Compute 3D object centers in camera frame
+                mask_id = get_mask_idx(suction_name)
+                object_pose = scene_description[mask_id]
+                center_in_camera = object_pose['cam_t_m2c']
+                for j in range(len(center_in_camera)):
+                    center_in_camera[j] = center_in_camera[j] / 1000.
 
-            # If center isn't contained within the object, use point cloud average
-            if center_in_camera[0] < xyz_img[mask, 0].min() or \
-                    center_in_camera[0] > xyz_img[mask, 0].max() or \
-                    center_in_camera[1] < xyz_img[mask, 1].min() or \
-                    center_in_camera[1] > xyz_img[mask, 1].max():
-                center_in_camera = xyz_img[mask, ...].mean(axis=0)
+                # If center isn't contained within the object, use point cloud average
+                if center_in_camera[0] < xyz_img[mask, 0].min() or \
+                        center_in_camera[0] > xyz_img[mask, 0].max() or \
+                        center_in_camera[1] < xyz_img[mask, 1].min() or \
+                        center_in_camera[1] > xyz_img[mask, 1].max():
+                    center_in_camera = xyz_img[mask, ...].mean(axis=0)
 
-            # Get directions
-            cf_3D_centers[k - 2] = center_in_camera
-            object_center_offsets = (center_in_camera - xyz_img).astype(np.float32)  # Shape: [H x W x 3]
+                # Get directions
+                cf_3D_centers[k - 2] = center_in_camera
+                object_center_offsets = (center_in_camera - xyz_img).astype(np.float32)  # Shape: [H x W x 3]
 
-            # Add it to the labels
-            offsets[mask, ...] = object_center_offsets[mask, ...]
+                # Add it to the labels
+                offsets[mask, ...] = object_center_offsets[mask, ...]
+
+            if k==3:
+                # Compute 3D object centers in camera frame
+                mask_id = get_mask_idx(grasp_name)
+                object_pose = scene_description[mask_id]
+                center_in_camera = object_pose['cam_t_m2c']
+                for j in range(len(center_in_camera)):
+                    center_in_camera[j] = center_in_camera[j] / 1000.
+
+                # If center isn't contained within the object, use point cloud average
+                if center_in_camera[0] < xyz_img[mask, 0].min() or \
+                        center_in_camera[0] > xyz_img[mask, 0].max() or \
+                        center_in_camera[1] < xyz_img[mask, 1].min() or \
+                        center_in_camera[1] > xyz_img[mask, 1].max():
+                    center_in_camera = xyz_img[mask, ...].mean(axis=0)
+
+                # Get directions
+                cf_3D_centers[k - 2] = center_in_camera
+                object_center_offsets = (center_in_camera - xyz_img).astype(np.float32)  # Shape: [H x W x 3]
+
+                # Add it to the labels
+                offsets[mask, ...] = object_center_offsets[mask, ...]
 
         return offsets, cf_3D_centers
 
@@ -171,6 +202,7 @@ class GraspDataloader(Dataset):
         grasp_scene_id = grasp_words[0]
         suction_name = grasp_words[1]
         grasp_name = grasp_words[2]
+        # print("scene id:{}".format(data_scene_id))
 
         if data_scene_id != grasp_scene_id:
             print("{0}!={1}".format(data_scene_id, grasp_scene_id))
@@ -213,7 +245,7 @@ class GraspDataloader(Dataset):
         scene_description = get_scene_data(folder_name, data_scene_id)
         foreground_labels = target_labels[:480, :640, ...]
         center_offset_labels, object_centers = self.process_label_3D(
-            foreground_labels, xyz_img, scene_description
+            foreground_labels, xyz_img, scene_description, suction_name, grasp_name
         )
 
         view_num = len(scene_description)
@@ -233,7 +265,7 @@ class GraspDataloader(Dataset):
                 # This is gonna bug out because the dimensions will be different per frame
                 'num_3D_centers': num_3D_centers,
                 'scene_dir': "",
-                'view_num': view_num,
+                'view_num': "",
                 'label_abs_path': "",
                 }
 
@@ -278,6 +310,8 @@ def get_grasp_test_dataloader(data_list_path, grasp_list_path, config, batch_siz
 
 
 def main():
+    plot = False
+
     data_list_path = "../dataset/BOP/train_pbr/train_list_1010.txt"
     grasp_list_path = "../dataset/BOP/train_pbr/train_grasp_1010.txt"
     config = {
@@ -317,6 +351,9 @@ def main():
     dl = get_grasp_test_dataloader(data_list_path, grasp_list_path, config, batch_size=1)
     test_num = dl.__len__()
 
+    for i in range(4):
+        data = ds.__getitem__(i)
+
     for i, batch in enumerate(dl):
         ### Compute segmentation masks ###
         rgb_imgs = util_.torch_to_numpy(batch['rgb'], is_standardized_image=True)
@@ -326,32 +363,33 @@ def main():
         obj_num = util_.torch_to_numpy(batch['view_num'])
         N, H, W = foreground_labels.shape[:3]
 
-        fig_index = 1
-        fig = plt.figure(fig_index);
-        fig_index += 1
-        fig.set_size_inches(20, 5)
+        if plot:
+            fig_index = 1
+            fig = plt.figure(fig_index);
+            fig_index += 1
+            fig.set_size_inches(20, 5)
 
-        # Plot image
-        plt.subplot(1, 4, 1)
-        plt.imshow(rgb_imgs[0, ...].astype(np.uint8))
-        plt.title('Image {0}/{1}'.format(i + 1, test_num))
+            # Plot image
+            plt.subplot(1, 4, 1)
+            plt.imshow(rgb_imgs[0, ...].astype(np.uint8))
+            plt.title('Image {0}/{1}'.format(i + 1, test_num))
 
-        # Plot Depth
-        plt.subplot(1, 4, 2)
-        plt.imshow(xyz_imgs[0, ..., 2])
-        plt.title('Depth')
+            # Plot Depth
+            plt.subplot(1, 4, 2)
+            plt.imshow(xyz_imgs[0, ..., 2])
+            plt.title('Depth')
 
-        # Plot labels
-        plt.subplot(1, 4, 3)
-        plt.imshow(util_.get_color_mask(foreground_labels[0, ...]))
-        plt.title("ground truth, object number:{}".format(obj_num))
+            # Plot labels
+            plt.subplot(1, 4, 3)
+            plt.imshow(util_.get_color_mask(foreground_labels[0, ...]))
+            plt.title("ground truth, object number:{}".format(obj_num))
 
-        # Plot Center Direction Predictions
-        plt.subplot(1, 4, 4)
-        plt.imshow(flowlib.flow_to_image(center_offset_labels[0, ...]))
-        plt.title("Center Direction Predictions")
+            # Plot Center Direction Predictions
+            plt.subplot(1, 4, 4)
+            plt.imshow(flowlib.flow_to_image(center_offset_labels[0, ...]))
+            plt.title("Center Direction Predictions")
 
-        plt.waitforbuttonpress()
+            plt.waitforbuttonpress()
 
 
 if __name__ == '__main__':
