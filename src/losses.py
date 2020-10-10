@@ -65,7 +65,7 @@ class CELossWeighted(WeightedLoss):
             @param x: a [N x C x H x W] torch.FloatTensor of values
             @param target: a [N x H x W] torch.LongTensor of values
         """
-        temp = self.CrossEntropyLoss(x, target) # Shape: [N x H x W]
+        temp = self.CrossEntropyLoss(x, target)  # Shape: [N x H x W]
         weight_mask = self.generate_weight_mask(target)
         loss = torch.sum(temp * weight_mask) / torch.sum(weight_mask) 
 
