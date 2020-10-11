@@ -85,13 +85,8 @@ class Trainer(ABC):
         """
 
         # Save optimizer stuff
-        checkpoint = {
-            'iter_num' : self.iter_num,
-            'epoch_num' : self.epoch_num,
-            'infos' : self.infos,
-        }
-
-        checkpoint['optimizer'] = self.optimizer.state_dict()
+        checkpoint = {'iter_num': self.iter_num, 'epoch_num': self.epoch_num, 'infos': self.infos,
+                      'optimizer': self.optimizer.state_dict()}
 
         if save_dir is None:
             save_dir = self.config['tb_directory']
@@ -154,10 +149,10 @@ class DSNTrainer(Trainer):
         separation_loss = ls.CELossWeightedMasked(weighted=True)
         cluster_loss = ls.ClusterLossWeighted(self.config['delta'], weighted=True)
         self.losses = {
-            'fg_loss' : foreground_loss,
-            'co_loss' : center_offset_loss,
-            'sep_loss'  : separation_loss,
-            'cl_loss' : cluster_loss,
+            'fg_loss': foreground_loss,
+            'co_loss': center_offset_loss,
+            'sep_loss': separation_loss,
+            'cl_loss': cluster_loss,
         }
 
         # Tensorboard stuff
@@ -202,7 +197,7 @@ class DSNTrainer(Trainer):
                 fg_logits, center_offsets = self.model_wrapper.model(batch['xyz'])
 
                 ### Foreground Loss ###
-                fg_masks = foreground_labels.clamp(0,2).long()
+                fg_masks = foreground_labels.clamp(0, 2).long()
                 fg_loss = self.losses['fg_loss'](fg_logits, fg_masks)
 
                 ### Center Prediction Loss ###
