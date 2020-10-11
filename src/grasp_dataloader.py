@@ -310,7 +310,7 @@ def get_grasp_test_dataloader(data_list_path, grasp_list_path, config, batch_siz
 
 
 def main():
-    plot = False
+    plot = True
 
     data_list_path = "../dataset/BOP/train_pbr/train_list_1010.txt"
     grasp_list_path = "../dataset/BOP/train_pbr/train_grasp_1010.txt"
@@ -360,7 +360,8 @@ def main():
         xyz_imgs = util_.torch_to_numpy(batch['xyz'])  # Shape: [N x H x W x 3]
         foreground_labels = util_.torch_to_numpy(batch['foreground_labels'])  # Shape: [N x H x W]
         center_offset_labels = util_.torch_to_numpy(batch['center_offset_labels'])  # Shape: [N x 2 x H x W]
-        obj_num = util_.torch_to_numpy(batch['view_num'])
+        # obj_num = util_.torch_to_numpy(batch['view_num'])
+        obj_num = 2
         N, H, W = foreground_labels.shape[:3]
 
         if plot:
