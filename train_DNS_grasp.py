@@ -73,7 +73,7 @@ dsn_config = {
 
 }
 
-tb_dir = "log/bop_log/1010_1"  # TODO: change this to desired tensorboard directory
+tb_dir = "log/bop_log/1011_4/"  # TODO: change this to desired tensorboard directory
 dsn_training_config = {
 
     # Training parameters
@@ -93,23 +93,23 @@ dsn_training_config = {
     # Tensorboard stuff
     'tb_directory': os.path.join(tb_dir, 'train_DSN/'),
     'flush_secs': 10,  # Write tensorboard results every _ seconds
+
+
 }
 
 iter_num = 0
 dsn_training_config.update({
     # Starting optimization from previous checkpoint
-    'load' : False,
-    'opt_filename' : os.path.join(dsn_training_config['tb_directory'],
-                                  f'DSNTrainer_DSNWrapper_{iter_num}_checkpoint.pth'),
-    'model_filename' : os.path.join(dsn_training_config['tb_directory'],
-                                    f'DSNTrainer_DSNWrapper_{iter_num}_checkpoint.pth'),
+    'load' : True,
+    'opt_filename' : "/home/yumi/Project/uois3d/checkpoints/models_grasp/DSNTrainer_DSNWrapper_iter53941_checkpoint.pth",
+    'model_filename' : "/home/yumi/Project/uois3d/checkpoints/models_grasp/DSNWrapper_iter53941_64c_checkpoint.pth",
 })
 
 dsn = segmentation.DSNWrapper(dsn_config)
 dsn_trainer = train.DSNTrainer(dsn, dsn_training_config)
 
 # Train the network for 1 epoch
-num_epochs = 15
+num_epochs = 100
 dsn_trainer.train(num_epochs, dl)
 save_dir = "checkpoints/models_grasp/"
 dsn_trainer.save(save_dir=save_dir)
