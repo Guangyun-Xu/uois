@@ -2,17 +2,9 @@ import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
-import glob
 import cv2
 cv2.setNumThreads(0)
 import json
-from PIL import Image
-import pybullet as p
-
-import sys
-
-# sys.path.append("./")
-# print(sys.path)
 
 from src.util import utilities as util_
 from src import data_augmentation
@@ -177,23 +169,18 @@ class BOPDataset(Dataset):
         # RGB image
         data_dir = self.data_dir
         data_dir_abs = os.path.abspath(data_dir)
-
         folder_name = os.path.join(data_dir_abs, folder_name)
         rgb_path = os.path.join(folder_name, "rgb/{}.jpg".format(scene_id))
-
-        with Image.open(rgb_path) as di:
-            rgb_img = np.array(di)
-        # rgb_img = cv2.imread(rgb_path, -1)
-        # print(rgb_img)
-        # rgb_img = rgb_img[:, :, ::-1].copy()
-        # rgb_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2RGB)
+        rgb_img = cv2.imread(rgb_path)
+        rgb_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2RGB)
         rgb_img = self.process_rgb(rgb_img)  # random color warping
+        rgb_img = rgb_img[:480, :640, ...]
 
         # Depth image
         depth_path = os.path.join(folder_name, "depth/{}.png".format(scene_id))
         depth_img = cv2.imread(depth_path,
                                cv2.IMREAD_ANYDEPTH)  # This reads a 16-bit single-channel image. Shape: [H x W]
-        xyz_img = self.process_depth(depth_img)  # cover depth to xyz image
+        xyz_img = self.process_depth(depth_img)[:480, :640, ...]  # cover depth to xyz image
 
         # labels
         image_shape = depth_img.shape
@@ -208,9 +195,12 @@ class BOPDataset(Dataset):
             # mask_size = mask_idx[0].size
             foreground_labels[mask_idx] = i + 2  # 0:background, 1:box, other:foreground
         scene_description = get_scene_data(folder_name, scene_id)
+        foreground_labels = foreground_labels[:480, :640, ...]
         center_offset_labels, object_centers = self.process_label_3D(
             foreground_labels, xyz_img, scene_description
         )
+
+        # center_offset_labels = center_offset_labels[:480, :640, ...]
 
         view_num = len(scene_description)
         # Turn these all into torch tensors
@@ -251,6 +241,16 @@ class BOPDataset(Dataset):
 
 
 def get_BOP_train_dataloader(data_list_path, config, batch_size=8, num_workers=10, shuffle=True):
+    config = config.copy()
+    dataset = BOPDataset(data_list_path, config)
+
+    return DataLoader(dataset=dataset,
+                      batch_size=batch_size,
+                      shuffle=shuffle,
+                      num_workers=num_workers,
+                      worker_init_fn=worker_init_fn)
+
+def get_BOP_test_dataloader(data_list_path, config, batch_size=8, num_workers=10, shuffle=False):
     config = config.copy()
     dataset = BOPDataset(data_list_path, config)
 
