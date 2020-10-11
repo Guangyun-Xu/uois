@@ -1,9 +1,18 @@
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import cv2
 import torch
 from PIL import Image
 
+
+def read_lines(p):
+    with open(p, 'r') as f:
+        lines = [
+            line.strip() for line in f.readlines()
+        ]
+    return lines
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -317,7 +326,8 @@ def subplotter(images, titles=None, fig_num=1, plot_width=5):
     for i in range(num_images):
         plt.subplot(1, num_images, i+1)
         plt.imshow(images[i])
+        # plt.imsave("/home/yumi/Project/uois3d/example_images/images/{}.png".format(i), images[i])
         if titles:
             plt.title(titles[i])
+    plt.waitforbuttonpress()
 
-  
